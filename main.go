@@ -1,15 +1,42 @@
 package main
 
 import (
-	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 )
 
+// convertHexToBinary converts hexadecimal string to binary string
+func convertHexToBinary(hexData string) (string, error) {
+	bytes, err := hex.DecodeString(hexData)
+	if err != nil {
+		return "", err
+	}
+
+	var binaryData string
+	for _, b := range bytes {
+		binaryData += fmt.Sprintf("%08b", b)
+	}
+	return binaryData, nil
+}
+
+// extractBits extracts the desired sequence of bits specified by the formula
+func extractBits(binaryData string, startBit, length int) (string, error) {
+	if startBit+length > len(binaryData) {
+		return "", errors.New("out of range")
+	}
+	return binaryData[startBit : startBit+length], nil
+}
+
+// binaryStringToDecimal converts binary string to decimal
+func binaryStringToDecimal(binaryString string) (uint64, error) {
+	return strconv.ParseUint(binaryString, 2, 64)
+}
+
 func ExtractAndDecodeWithFormula(hexData string, formula string) (float64, string, error) {
-	// Define a regex for the formula
+	// Regular expression to parse the formula
 	re := regexp.MustCompile(`(\d+)\|(\d+)@(\d+)\+ \(([^,]+),([^)]+)\) \[([^|]+)\|([^]]+)] "([^"]+)"`)
 	matches := re.FindStringSubmatch(formula)
 
@@ -17,67 +44,40 @@ func ExtractAndDecodeWithFormula(hexData string, formula string) (float64, strin
 		return 0, "", fmt.Errorf("invalid formula format: %s", formula)
 	}
 
-	startBit, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return 0, "", err
-	}
-	lengthBits, err := strconv.Atoi(matches[2])
-	if err != nil {
-		return 0, "", err
-	}
-	endianness, err := strconv.Atoi(matches[3])
-	if err != nil {
-		return 0, "", err
-	}
-	scaleFactor, err := strconv.ParseFloat(matches[4], 64)
-	if err != nil {
-		return 0, "", err
-	}
-	offsetAdjustment, err := strconv.ParseFloat(matches[5], 64)
-	if err != nil {
-		return 0, "", err
-	}
-	minValue, err := strconv.ParseFloat(matches[6], 64)
-	if err != nil {
-		return 0, "", err
-	}
-	maxValue, err := strconv.ParseFloat(matches[7], 64)
-	if err != nil {
-		return 0, "", err
-	}
+	startBit, _ := strconv.Atoi(matches[1])
+	lengthBits, _ := strconv.Atoi(matches[2])
+	scaleFactor, _ := strconv.ParseFloat(matches[4], 64)
+	offsetAdjustment, _ := strconv.ParseFloat(matches[5], 64)
+	minValue, _ := strconv.ParseFloat(matches[6], 64)
+	maxValue, _ := strconv.ParseFloat(matches[7], 64)
 	unit := matches[8]
 
-	// Decode hex
-	hexBytes, err := hex.DecodeString(hexData)
+	// Convert hex to binary
+	binaryData, err := convertHexToBinary(hexData)
+	if err != nil {
+		return 0, "", err
+	}
+	//print(binaryData)
+	//confirmed by rapidtables
+
+	// Extract bits
+	bits, err := extractBits(binaryData, startBit, lengthBits)
+	if err != nil {
+		return 0, "", err
+	}
+	//print(bits)
+	//confirmed by rapidtables
+
+	// Convert binary string to decimal
+	value, err := binaryStringToDecimal(bits)
 	if err != nil {
 		return 0, "", err
 	}
 
-	// Calculate start byte, end byte
-	startByte := startBit / 8
-	lengthBytes := (lengthBits + 7) / 8 //
-	endByte := startByte + lengthBytes
-	if endByte > len(hexBytes) {
-		return 0, "", fmt.Errorf("data out of range: data length is %d, but endByte is %d", len(hexBytes), endByte)
-	}
+	// Apply the formula
+	decodedValue := float64(value)*scaleFactor + offsetAdjustment
 
-	// Extract data and convert to uint32 with endianness
-	var dataUint32 uint32
-	dataBytes := hexBytes[startByte:endByte]
-	if endianness == 1 {
-		dataUint32 = binary.BigEndian.Uint32(append(make([]byte, 4-len(dataBytes)), dataBytes...)) // big-endian
-	} else {
-		dataUint32 = binary.LittleEndian.Uint32(append(dataBytes, make([]byte, 4-len(dataBytes))...)) // little-endian
-	}
-
-	// Create mask and shift bits
-	mask := (1<<lengthBits - 1) << (startBit % 8)
-	value := (dataUint32 & uint32(mask)) >> (startBit % 8)
-
-	// Apply formula components
-	decodedValue := (float64(value) * scaleFactor) + offsetAdjustment
-
-	// Check if the decoded value is within specified range
+	// Check range
 	if decodedValue < minValue || decodedValue > maxValue {
 		return 0, "", fmt.Errorf("decoded value out of range: %.2f (expected range %.2f to %.2f)", decodedValue, minValue, maxValue)
 	}
@@ -86,9 +86,9 @@ func ExtractAndDecodeWithFormula(hexData string, formula string) (float64, strin
 }
 
 func main() {
-	// Example odometer
-	hexData := "7e80641a6000e2a2"
-	formula := "31|32@0+ (0.1,0) [1|429496730] \"km\""
+	hexData := "7e80641a6000e2a2da"
+	formula := "48|20@0+ (0.1,0) [1|429496730] \"km\""
+	//formula := "31|32@0+ (0.1,0) [1|429496730] \"km\""
 
 	decodedValue, unit, err := ExtractAndDecodeWithFormula(hexData, formula)
 	if err != nil {
