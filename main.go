@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// extractAndDecodeWithFormula extracts the data following the PID and applies the formula for decoding
-func extractAndDecodeWithFormula(hexData, pid, formula string) (float64, string, error) {
+// ExtractAndDecodeWithFormula extracts the data following the PID and applies the formula for decoding
+func ExtractAndDecodeWithFormula(hexData, pid, formula string) (float64, string, error) {
 	// Parse formula
 	re := regexp.MustCompile(`(\d+)\|(\d+)@(\d+)\+ \(([^,]+),([^)]+)\) \[([^|]+)\|([^]]+)] "([^"]+)"`)
 	matches := re.FindStringSubmatch(formula)
@@ -24,7 +24,7 @@ func extractAndDecodeWithFormula(hexData, pid, formula string) (float64, string,
 	}
 	numBytes := lengthBits / 8
 
-	// Find the index of PID in the hex string
+	// Find the index of PID in the hex string, strings.Index returns first occurrence
 	pidIndex := strings.Index(hexData, pid)
 	if pidIndex == -1 {
 		return 0, "", errors.New("PID not found")
@@ -76,11 +76,11 @@ func extractAndDecodeWithFormula(hexData, pid, formula string) (float64, string,
 }
 
 func main() {
-	hexData := "7e80641a6000e2a2da"
+	hexData := "7e80641a60008b24200"
 	pid := "a6"
 	formula := "31|32@0+ (0.1,0) [1|4294967295] \"km\""
 
-	decodedValue, unit, err := extractAndDecodeWithFormula(hexData, pid, formula)
+	decodedValue, unit, err := ExtractAndDecodeWithFormula(hexData, pid, formula)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

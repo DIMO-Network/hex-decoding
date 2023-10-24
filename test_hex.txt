@@ -1,0 +1,31 @@
+Testing for hex decoding
+
+Odometer:
+obd.query ODOMETER 
+obd.query ODO header=7DF mode=01 pid="A6" protocol=6 force=True
+31|32@0+ (0.1,0) [1|4294967295] "km"
+
+MAF:
+obd.query MAF
+obd.query MAF header=7DF mode=01 pid=10 protocol=6 force=True
+31|16@0+ (0.01,0) [0|655.35] \"grams/sec\"
+
+RPM:
+obd.query RPM
+obd.query RPM header=7DF mode=01 pid=C protocol=6 force=True
+31|16@0+ (0.25,0) [0|16383.75] \"rpm\"
+
+Fuel level:
+obd.query FUEL_LEVEL
+obd.query FL header=7DF mode=01 pid=47 protocol=6 force=True
+31|8@0+ (0.392156862745098,0) [0|100] \"%\"
+
+Coolant Temp:
+obd.query COOLANT_TEMP
+obd.query CT header-7DF mode=01 pid=103 protocol=6 force=True
+31|8@0+ (1,-40) [-40|215] \"Celcius\"
+
+Engine Load:
+obd.query ENGINE_LOAD
+obd.query EL header=7DF mode=01 pid=4 protocol=6 force=True
+31|8@0+ (0.39216,0) [0|100] \"%\"
